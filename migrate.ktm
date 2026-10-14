@@ -25,16 +25,19 @@ pub const i64 ERR_MIGRATE = 0x6D670001;
 
 /* What the runner needs from a database: the sub-packages postgres and
  * sqlite make one, and any engine can (see the README). Each function
- * gets ctx first and throws on an error. */
+ * gets the Driver and throws on an error. */
+pub struct Driver;
 pub struct Driver {
-    void *ctx;
+    void *ctx;          /* the driver's: its connection, database, pool */
+    void *conn;         /* the driver's too: what lock() took for the run, if anything */
     /* runs a script of any number of statements, no parameters */
-    fn(void *, u8[]) void exec;
+    fn(Driver *, u8[]) void exec;
     /* runs a query and appends the first column of each row, an integer */
-    fn(void *, u8[], vec.Vec<i64> *) void queryInts;
-    /* held while the runner works: null for none */
-    fn(void *) void lock;
-    fn(void *) void unlock;
+    fn(Driver *, u8[], vec.Vec<i64> *) void queryInts;
+    /* called before and after every run (unlock also after a failure):
+     * null for nothing */
+    fn(Driver *) void lock;
+    fn(Driver *) void unlock;
     /* the statement that starts a transaction: "" for BEGIN */
     u8[] begin;
 };
@@ -210,12 +213,12 @@ pub Migrations load(u8[] dir) {
 /* ---- the runner ---- */
 
 static void run(Driver *d, u8[] sql) {
-    d.exec(d.ctx, sql);
+    d.exec(d, sql);
 }
 
 static vec.Vec<i64> ints(Driver *d, u8[] sql) {
     vec.Vec<i64> out;
-    d.queryInts(d.ctx, sql, &out);
+    d.queryInts(d, sql, &out);
     return out;
 }
 
@@ -279,11 +282,11 @@ static void lockIt(Driver *d) {
     if (!d.exec || !d.queryInts) {
         throw(ERR_MIGRATE, "migrate: a Driver needs exec and queryInts");
     }
-    if (d.lock) { d.lock(d.ctx); }
+    if (d.lock) { d.lock(d); }
 }
 
 static void unlockIt(Driver *d) {
-    if (d.unlock) { d.unlock(d.ctx); }
+    if (d.unlock) { d.unlock(d); }
 }
 
 /* Applies the pending migrations up to version `target` (every one for

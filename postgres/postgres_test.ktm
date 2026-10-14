@@ -128,3 +128,26 @@ void testTwoInstances(testing.T *t) {
     gSlow.free();
     close(c);
 }
+
+void testPool(testing.T *t) {
+    pg.Conn *c = open(t);
+    ad String url = str.format("%.*s?search_path=%s", gUrl.len, gUrl.ptr, gSchema.cstr());
+    pg.Pool *p = pg.open(url[0:]);
+    migrate.Driver d = driverPool(p);
+    migrate.Migrations ms = users();
+    t.equal(ms.up(&d), 3);
+    t.equal(migrate.version(&d), 3);
+    t.check(d.conn == null, "no connection held between runs");
+    t.equal(p.idleCount(), p.openCount());
+    t.equal(pg.queryOne<i64>(c, "SELECT count(*) FROM users"), 1);
+    ms.add(4, "broken", "SELECT * FROM nowhere", "");
+    bool threw = false;
+    try { ms.up(&d); } catch (Error e) { threw = e.code == migrate.ERR_MIGRATE; }
+    t.check(threw, "a failure through the pool");
+    t.equal(p.idleCount(), p.openCount());
+    t.equal(pg.queryOne<i64>(c, "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory'"), 0);
+    t.equal(ms.to(&d, 0), 3);
+    ms.free();
+    p.close();
+    close(c);
+}

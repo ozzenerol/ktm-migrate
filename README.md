@@ -7,7 +7,7 @@ engine needs a driver of four functions.
 
 ```c
 import "github.com/ozzenerol/ktm-migrate";            // the package is named migrate
-import "github.com/ozzenerol/ktm-migrate/postgres";   // postgres.driver(conn)
+import "github.com/ozzenerol/ktm-migrate/postgres";   // postgres.driver(conn), postgres.driverPool(pool)
 import "github.com/ozzenerol/ktm-migrate/sqlite";     // sqlite.driver(db)
 ```
 
@@ -103,10 +103,19 @@ ms.add(2, "add_email", "ALTER TABLE users ADD email text UNIQUE", "ALTER TABLE u
 
 ### PostgreSQL
 
-`postgres.driver(conn)` takes a `pg.Conn *`, which stays yours to close. While it works, the runner
-holds `pg_advisory_lock(postgres.LOCK_KEY)`, so instances that start together take turns, and the
-later ones find nothing left to do. The lock belongs to the connection: use one connection for
-the whole run. From a pool, that's `pool.acquire()`.
+`postgres.driver(conn)` takes a `pg.Conn *`, and `postgres.driverPool(pool)` a `pg.Pool *`. Either
+stays yours to close. While it works, the runner holds `pg_advisory_lock(postgres.LOCK_KEY)`, so
+instances that start together take turns, and the later ones find nothing left to do.
+
+The lock belongs to a connection, so a run uses one connection from start to end. With a pool,
+each run (`up`, `down`, `to`, `status`, `version`) acquires one when it starts and gives it back
+when it ends, also after a failure:
+
+```c
+pg.Pool *pool = pg.open(url);
+migrate.Driver d = postgres.driverPool(pool);
+ms.up(&d);              // before the server starts taking requests
+```
 
 ### SQLite
 
@@ -118,17 +127,21 @@ already ran.
 
 ### Writing one
 
-A `migrate.Driver` is four functions and a context. Each one throws on an error.
+A `migrate.Driver` is four functions and two slots for the driver's own use. Each function gets
+the Driver and throws on an error.
 
 ```c
 migrate.Driver d;
-d.ctx = myConn;
-d.exec = &myExec;            // fn(void *ctx, u8[] script) void: runs a script of statements
-d.queryInts = &myQueryInts;  // fn(void *ctx, u8[] sql, vec.Vec<i64> *out) void: the first column of each row
-d.lock = &myLock;            // fn(void *ctx) void, or null: held while the runner works
-d.unlock = &myUnlock;
+d.ctx = myDb;                // yours: a connection, a database, a pool
+d.exec = &myExec;            // fn(migrate.Driver *d, u8[] script) void: runs a script of statements
+d.queryInts = &myQueryInts;  // fn(migrate.Driver *d, u8[] sql, vec.Vec<i64> *out) void: the first column of each row
+d.lock = &myLock;            // fn(migrate.Driver *d) void, or null: called when a run starts
+d.unlock = &myUnlock;        // and when it ends, also after a failure
 d.begin = "BEGIN";           // the statement that starts a transaction ("" is BEGIN)
 ```
+
+`d.conn` is yours too. A driver over a pool sets it in `lock` to the connection it took, and
+`exec` and `queryInts` use that connection until `unlock` gives it back (see `postgres.driverPool`).
 
 The runner only sends `CREATE TABLE IF NOT EXISTS`, `SELECT`, `INSERT`, `DELETE`, the begin
 statement, `COMMIT`, `ROLLBACK` and your scripts. An engine that runs those works.

@@ -17,15 +17,15 @@ import sql, vec;
  * the database's write lock: a second program migrating the same file
  * waits for it (up to the busy timeout), then skips what already ran. */
 
-static void sqliteExec(void *ctx, u8[] script) {
-    ad String err = sql.execRaw(ctx, script);
+static void sqliteExec(migrate.Driver *d, u8[] script) {
+    ad String err = sql.execRaw(d.ctx, script);
     if (err.len) { throw(migrate.ERR_MIGRATE, "%s", err.cstr()); }
 }
 
-static void sqliteQueryInts(void *ctx, u8[] query, vec.Vec<i64> *out) {
+static void sqliteQueryInts(migrate.Driver *d, u8[] query, vec.Vec<i64> *out) {
     sql.Row row;
-    if (!sql.select(ctx, &row, query)) {
-        sql.Db *db = ctx;
+    sql.Db *db = d.ctx;
+    if (!sql.select(db, &row, query)) {
         throw(migrate.ERR_MIGRATE, "%s", sql.sqlite3_errmsg(db.conn));
     }
     while (sql.next(&row)) { out.push(row.col[0].intVal); }
@@ -33,9 +33,9 @@ static void sqliteQueryInts(void *ctx, u8[] query, vec.Vec<i64> *out) {
 
 /* A Driver for db (which stays yours to close) */
 pub migrate.Driver driver(sql.Db *db) {
-    sqliteExec(db, "PRAGMA busy_timeout = 10000");
     migrate.Driver d;
     d.ctx = db;
+    sqliteExec(&d, "PRAGMA busy_timeout = 10000");
     d.exec = &sqliteExec;
     d.queryInts = &sqliteQueryInts;
     d.begin = "BEGIN IMMEDIATE";

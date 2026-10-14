@@ -21,8 +21,8 @@ static i64 numberAfter(u8[] s, u8[] marker) {
     return v;
 }
 
-static void fakeExec(void *ctx, u8[] sql) {
-    Fake *f = ctx;
+static void fakeExec(Driver *d, u8[] sql) {
+    Fake *f = d.ctx;
     f.log.append(sql);
     f.log.append(";\n");
     if (str.contains(sql, "FAIL")) { throw(1, "syntax error at FAIL"); }
@@ -46,8 +46,8 @@ static void fakeExec(void *ctx, u8[] sql) {
     }
 }
 
-static void fakeQueryInts(void *ctx, u8[] sql, vec.Vec<i64> *out) {
-    Fake *f = ctx;
+static void fakeQueryInts(Driver *d, u8[] sql, vec.Vec<i64> *out) {
+    Fake *f = d.ctx;
     f.log.append(sql);
     f.log.append(";\n");
     i64 only = numberAfter(sql, "version = ");
@@ -58,8 +58,8 @@ static void fakeQueryInts(void *ctx, u8[] sql, vec.Vec<i64> *out) {
     sorted.free();
 }
 
-static void fakeLock(void *ctx) { Fake *f = ctx; f.locks++; }
-static void fakeUnlock(void *ctx) { Fake *f = ctx; f.unlocks++; }
+static void fakeLock(Driver *d) { Fake *f = d.ctx; f.locks++; }
+static void fakeUnlock(Driver *d) { Fake *f = d.ctx; f.unlocks++; }
 
 static Driver fakeDriver(Fake *f) {
     Driver d;
@@ -164,14 +164,14 @@ void testNoTransaction(testing.T *t) {
 /* another instance applied it between our read and our transaction */
 static i64 gRaceAt = 0;
 static Fake *gRacing;
-static void racingExec(void *ctx, u8[] sql) {
+static void racingExec(Driver *d, u8[] sql) {
     if (gRaceAt && str.startsWith(sql, "BEGIN")) {
         gRacing.versions.push(gRaceAt);
-        fakeExec(ctx, sql);
+        fakeExec(d, sql);
         gRaceAt = 0;
         return;
     }
-    fakeExec(ctx, sql);
+    fakeExec(d, sql);
 }
 
 void testRecheckInsideTransaction(testing.T *t) {
