@@ -1,10 +1,10 @@
 # Changelog
 
-## v0.1.1 (unreleased)
+## v0.1.1 (2026-10-15)
 
 - The code and tests declare with `scoped` instead of `ad` (ktm v0.24.0 renamed it; v0.25.0
   removes `ad`).
-- Needs ktm 0.24.
+- Needs ktm 0.24, and ktm-pg v0.2.1 (which uses `scoped` too).
 
 ## v0.1.0 (2026-10-14)
 
