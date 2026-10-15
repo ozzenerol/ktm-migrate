@@ -6,7 +6,7 @@ static String gDir;
 static String gDb;
 
 static void write(u8[] name, u8[] text) {
-    ad String p = fs.join(gDir[0:], name);
+    scoped String p = fs.join(gDir[0:], name);
     fs.writeAll(p[0:], text);
 }
 

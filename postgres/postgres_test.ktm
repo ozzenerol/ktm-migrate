@@ -17,20 +17,20 @@ static pg.Conn *open(testing.T *t) {
     gSchema = str.format("migrate_test_%d", libc.getpid());
     pg.Conn *c = connectIn(gSchema[0:]);
     c.execScript("SET client_min_messages = warning");
-    ad String sql = str.format("DROP SCHEMA IF EXISTS %s CASCADE; CREATE SCHEMA %s", gSchema.cstr(), gSchema.cstr());
+    scoped String sql = str.format("DROP SCHEMA IF EXISTS %s CASCADE; CREATE SCHEMA %s", gSchema.cstr(), gSchema.cstr());
     c.execScript(sql[0:]);
     return c;
 }
 
 static pg.Conn *connectIn(u8[] schema) {
     pg.Conn *c = pg.connect(gUrl);
-    ad String sql = str.format("SET search_path TO %.*s", schema.len, schema.ptr);
+    scoped String sql = str.format("SET search_path TO %.*s", schema.len, schema.ptr);
     c.execScript(sql[0:]);
     return c;
 }
 
 static void close(pg.Conn *c) {
-    ad String sql = str.format("DROP SCHEMA IF EXISTS %s CASCADE", gSchema.cstr());
+    scoped String sql = str.format("DROP SCHEMA IF EXISTS %s CASCADE", gSchema.cstr());
     c.execScript(sql[0:]);
     c.close();
     gSchema.free();
@@ -131,7 +131,7 @@ void testTwoInstances(testing.T *t) {
 
 void testPool(testing.T *t) {
     pg.Conn *c = open(t);
-    ad String url = str.format("%.*s?search_path=%s", gUrl.len, gUrl.ptr, gSchema.cstr());
+    scoped String url = str.format("%.*s?search_path=%s", gUrl.len, gUrl.ptr, gSchema.cstr());
     pg.Pool *p = pg.open(url[0:]);
     migrate.Driver d = driverPool(p);
     migrate.Migrations ms = users();

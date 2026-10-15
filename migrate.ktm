@@ -156,7 +156,7 @@ static void loadFile(Migrations *ms, u8[] dir, u8[] file) {
         throw(ERR_MIGRATE, "migrate: version %d is %s and %.*s: one name per version",
               version, m.name.cstr(), name.len, name.ptr);
     }
-    ad String path = fs.join(dir, file);
+    scoped String path = fs.join(dir, file);
     String text = fs.readAll(path[0:]);
     if (!text.ptr) {
         throw(ERR_MIGRATE, "migrate: can't read %s", path.cstr());
@@ -223,19 +223,19 @@ static vec.Vec<i64> ints(Driver *d, u8[] sql) {
 }
 
 static void ensureTable(Driver *d) {
-    ad String sql = str.format("CREATE TABLE IF NOT EXISTS schema_migrations (version bigint PRIMARY KEY, name text NOT NULL, "
+    scoped String sql = str.format("CREATE TABLE IF NOT EXISTS schema_migrations (version bigint PRIMARY KEY, name text NOT NULL, "
                                "applied_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)");
     run(d, sql[0:]);
 }
 
 /* The versions the database has, in order */
 static vec.Vec<i64> applied(Driver *d) {
-    ad String sql = str.from("SELECT version FROM schema_migrations ORDER BY version");
+    scoped String sql = str.from("SELECT version FROM schema_migrations ORDER BY version");
     return ints(d, sql[0:]);
 }
 
 static bool isApplied(Driver *d, i64 version) {
-    ad String sql = str.format("SELECT version FROM schema_migrations WHERE version = %d", version);
+    scoped String sql = str.format("SELECT version FROM schema_migrations WHERE version = %d", version);
     vec.Vec<i64> v = ints(d, sql[0:]);
     bool yes = v.len > 0;
     v.free();
@@ -263,7 +263,7 @@ static bool step(Driver *d, Migration *m, bool up) {
             return false;
         }
         run(d, script);
-        ad String row = up
+        scoped String row = up
             ? str.format("INSERT INTO schema_migrations (version, name) VALUES (%d, '%s')", m.version, m.name.cstr())
             : str.format("DELETE FROM schema_migrations WHERE version = %d", m.version);
         run(d, row[0:]);

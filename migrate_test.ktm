@@ -223,7 +223,7 @@ void testAdd(testing.T *t) {
 static String gDir;
 
 static void write(u8[] name, u8[] text) {
-    ad String p = fs.join(gDir[0:], name);
+    scoped String p = fs.join(gDir[0:], name);
     fs.writeAll(p[0:], text);
 }
 
@@ -262,22 +262,22 @@ void testLoad(testing.T *t) {
     ms.free();
 
     write("003_x.sql", "");
-    ad String e1 = loadError();
+    scoped String e1 = loadError();
     t.check(str.contains(e1[0:], "003_x.sql: name it NNN_name.up.sql or NNN_name.down.sql"), "%s", e1.cstr());
     fresh();
     write("004_a.up.sql", "");
     write("004_b.up.sql", "");
-    ad String e2 = loadError();
+    scoped String e2 = loadError();
     t.check(str.contains(e2[0:], "version 4 is") && str.contains(e2[0:], "one name per version"), "%s", e2.cstr());
     fresh();
     write("005_c.down.sql", "");
-    ad String e3 = loadError();
+    scoped String e3 = loadError();
     t.equal(e3, "migrate: 5_c.down.sql has no 5_c.up.sql");
     fresh();
-    ad String e4 = loadError();
+    scoped String e4 = loadError();
     t.equal(e4, "");
     fs.removeDir(gDir[0:], fs.REMOVE_RECURSE);
-    ad String e5 = loadError();
+    scoped String e5 = loadError();
     t.check(str.contains(e5[0:], "can't read the directory"), "%s", e5.cstr());
     gDir.free();
 }

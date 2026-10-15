@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.1 (unreleased)
+
+- The code and tests declare with `scoped` instead of `ad` (ktm v0.24.0 renamed it; v0.25.0
+  removes `ad`).
+- Needs ktm 0.24.
+
 ## v0.1.0 (2026-10-14)
 
 The first release: versioned SQL migrations for ktm, for any SQL engine.

@@ -18,7 +18,7 @@ import sql, vec;
  * waits for it (up to the busy timeout), then skips what already ran. */
 
 static void sqliteExec(migrate.Driver *d, u8[] script) {
-    ad String err = sql.execRaw(d.ctx, script);
+    scoped String err = sql.execRaw(d.ctx, script);
     if (err.len) { throw(migrate.ERR_MIGRATE, "%s", err.cstr()); }
 }
 
